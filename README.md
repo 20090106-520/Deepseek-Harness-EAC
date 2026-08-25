@@ -227,7 +227,7 @@ npm run dist                   # 构建 portable + NSIS 安装包，输出到 di
 
 常见问题：
 
-- **Windows 提示"已保护你的电脑"（SmartScreen）**：成品未做代码签名。点「更多信息 → 仍要运行」，或在 PowerShell 里 `Unblock-File`。
+- **Windows 提示"已保护你的电脑"（SmartScreen）**：成品暂未做代码签名（免费真实证书走 SignPath Foundation 开源通道，申请中，详见 [代码签名政策](SIGNING_POLICY.md) 与 [签名指南](docs/CODE_SIGNING.md)）。过渡期点「更多信息 → 仍要运行」，或在 PowerShell 里 `Unblock-File`。
 - **首次启动慢**：dsh 首次引导 profile 需要数秒到数十秒，属正常现象。
 - **更新下载慢**：设置环境变量 `NPM_CONFIG_REGISTRY=https://registry.npmmirror.com` 后重启应用。
 - **收不到通知**：确认菜单「会话完成通知」已勾选；便携版确认开始菜单里存在「Deepseek Harness EAC」快捷方式（首次运行自动创建，勿删除）；检查 Windows「通知与操作」设置里应用通知未被禁用。
