@@ -1,7 +1,7 @@
 {
   "name": "dsh-desktop",
   "productName": "Deepseek Harness EAC",
-  "version": "4.6.0",
+  "version": "4.6.1",
   "description": "DeepSeek Harness (dsh) 寮€绠卞嵆鐢ㄧ殑 Windows 妗岄潰瀹㈡埛绔細鍐呯疆 dsh CLI 涓?Node 杩愯鏃讹紝涓€閿惎鍔?Web UI",
   "main": "main.js",
   "author": "DSH Desktop",
@@ -13,7 +13,7 @@
     "predist": "node scripts/check-syntax.js",
     "prepack": "node scripts/check-syntax.js",
     "pack": "node scripts/patch-portable-template.js && node scripts/patch-deps.js && electron-builder --dir",
-    "dist": "node scripts/patch-portable-template.js && node scripts/patch-deps.js && electron-builder --win && node scripts/make-release-hashes.js",
+    "dist": "node scripts/patch-portable-template.js && node scripts/patch-deps.js && electron-builder --win --publish never && node scripts/make-release-hashes.js",
     "postinstall": "node scripts/patch-deps.js || exit 0",
     "fetch-npm": "node scripts/fetch-npm.js",
     "fetch-runtime": "node scripts/fetch-node.js && node scripts/fetch-npm.js",
