@@ -32,9 +32,18 @@
 
 ## 快速开始（成品用户）
 
-1. 打开 [Releases](https://github.com/20090106-520/Deepseek-Harness-EAC/releases/latest) 页面，选其一（链接永久有效，始终指向最新版）：
+1. 安装方式任选其一：
+
+   **winget（推荐，Windows 10+）**——包管理器安装流程基本不触发 SmartScreen 弹窗，且自带 SHA-256 校验（清单已随库维护并提交 microsoft/winget-pkgs 上架审核）：
+
+   ```powershell
+   winget install --id 20090106-520.Deepseek-Harness-EAC
+   ```
+
+   **直接下载**：打开 [Releases](https://github.com/20090106-520/Deepseek-Harness-EAC/releases/latest) 页面（链接永久有效，始终指向最新版），选其一：
    - [Deepseek-Harness-EAC-Portable-v4.6.0-x64.exe](https://github.com/20090106-520/Deepseek-Harness-EAC/releases/latest/download/Deepseek-Harness-EAC-Portable-v4.6.0-x64.exe) —— 免安装便携版，双击运行
    - [Deepseek-Harness-EAC-Setup-v4.6.0-x64.exe](https://github.com/20090106-520/Deepseek-Harness-EAC/releases/latest/download/Deepseek-Harness-EAC-Setup-v4.6.0-x64.exe) —— 安装版，创建桌面/开始菜单快捷方式
+
 2. 首次运行会显示启动动画，随后进入 DeepSeek Harness Web UI。
 3. 如尚未配置 API Key，在界面内完成配置即可开始使用（与命令行 dsh 完全一致）。
 
@@ -227,7 +236,7 @@ npm run dist                   # 构建 portable + NSIS 安装包，输出到 di
 
 常见问题：
 
-- **Windows 提示"已保护你的电脑"（SmartScreen）**：成品暂未做代码签名（免费真实证书走 SignPath Foundation 开源通道，申请中，详见 [代码签名政策](SIGNING_POLICY.md) 与 [签名指南](docs/CODE_SIGNING.md)）。过渡期点「更多信息 → 仍要运行」，或在 PowerShell 里 `Unblock-File`。
+- **Windows 提示"已保护你的电脑"（SmartScreen）**：本项目采用零证书分发策略（不购买代码签名证书，详见 [分发信任指南](docs/CODE_SIGNING.md)）——推荐改用 `winget install --id 20090106-520.Deepseek-Harness-EAC` 安装（基本不触发弹窗）；直接下载的 exe 首次运行点「更多信息 → 仍要运行」即可，下载量积累后警告自动消失；也可用 `Get-FileHash` 对照 Release 附带的 `SHA256SUMS.txt` 自验文件完整性。
 - **首次启动慢**：dsh 首次引导 profile 需要数秒到数十秒，属正常现象。
 - **更新下载慢**：设置环境变量 `NPM_CONFIG_REGISTRY=https://registry.npmmirror.com` 后重启应用。
 - **收不到通知**：确认菜单「会话完成通知」已勾选；便携版确认开始菜单里存在「Deepseek Harness EAC」快捷方式（首次运行自动创建，勿删除）；检查 Windows「通知与操作」设置里应用通知未被禁用。

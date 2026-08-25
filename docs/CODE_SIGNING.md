@@ -1,8 +1,43 @@
-# 代码签名指南（真实证书的免费与付费路径）
+# 分发信任指南（零证书策略 + 真实证书的免费与付费路径）
 
-当前成品未签名，Windows SmartScreen 首次运行会弹「已保护你的电脑」（用户点
-「更多信息 → 仍要运行」即可通过）。本文档给出接入**真实代码签名证书**的三条
-路径与本仓库的接线方式 —— 凭据到位后无需再改任何构建代码。
+当前成品未签名。**本项目的正式分发策略是「零证书」路线**（见下节）：不依赖
+代码签名证书，靠包管理器背书、压缩包规避标记与公开构建透明度建立用户信任；
+真实证书仅作为未来可选升级，相关接线方式一并保留在本文档后半部分。
+
+## 零证书分发策略（本项目现行方案）
+
+SmartScreen 是**信誉系统而非签名门禁**：按文件哈希的下载普及度与举报情况动态
+评分，签名只是快速建立信誉的捷径。无签名 exe 在下载量积累后警告会自动消失。
+据此采取四层组合（前两层已落地）：
+
+| 层级 | 做法 | 状态 |
+| --- | --- | --- |
+| 教学引导 | README 与 Release 说明给出「更多信息 → 仍要运行」截图式指引与哈希自验命令 | 已落地 |
+| 包管理器分发 | **winget 清单**随库维护（[packaging/winget/](../packaging/winget/)），提交 PR 到 microsoft/winget-pkgs 后用户可 `winget install` —— 终端安装基本绕开 SmartScreen 弹窗流程，且微软清单自带 SHA-256 校验等于替发布方背书 | 清单已备好 |
+| 压缩包规避标记 | 便携版可额外以 `.7z` 分发：7-Zip 解压不传播网页标记（MOTW），解出的 exe 不触发联网信誉检查 | 可选，需要时再加 |
+| 微软商店 | `appx` 目标由微软免费代签，唯一彻底零警告的官方通道；$19 一次性开发者注册费 | 未采用 |
+
+配套的透明度自证（替代 CA 身份背书）：
+
+- 构建产物对应的源码 commit 公开可查（本仓库 GitHub Actions / 本地构建说明）；
+- 每次 Release 附 `SHA256SUMS.txt`，用户可一行命令自验：
+
+```powershell
+Get-FileHash .\Deepseek-Harness-EAC-Setup-v4.6.0-x64.exe -Algorithm SHA256
+# 输出应与 SHA256SUMS.txt 中该文件行完全一致
+```
+
+winget 清单维护纪律：
+
+- 每次发版新增一个版本目录 `packaging/winget/manifests/<首字母>/<publisher>/<包名>/<版本>/`
+  三件套（version / defaultLocale / installer），installer 的 `InstallerSha256`
+  必须取当次构建产物的真实哈希（`Get-FileHash` 或 `scripts/make-release-hashes.js` 的输出）;
+- 向 [microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs) 提交 PR，
+  通过其自动化校验（`winget validate`）后合并上架。
+
+---
+
+以下为**可选的真实证书路径**（当前未启用，凭据到位后无需再改任何构建代码）。
 
 ## 三条路径对比
 
