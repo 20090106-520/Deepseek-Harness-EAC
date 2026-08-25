@@ -52,6 +52,7 @@ files:
   # 插件启停手术脚本（main.js 启动时 require）等必须在成品里存在。
   - scripts/koffi-preflight.cjs
   - scripts/patch-session-manage.js
+  - scripts/patch-web-react-shim.js
   - scripts/plugin-manager-patch.js
   - scripts/onboarding.js
   - scripts/make-release-hashes.js

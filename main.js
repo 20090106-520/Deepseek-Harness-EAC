@@ -54,6 +54,7 @@ const { buildErrorDetail } = require('./error-detail');
 const { SessionWatcher, scanZstdFrames } = require('./session-watcher');
 const { isEncodingMismatch, healSessionEncodingConflicts } = require('./session-encoding-heal');
 const { patchSessionManage } = require('./scripts/patch-session-manage');
+const { patchWebReactShim } = require('./scripts/patch-web-react-shim');
 const { togglePluginInPatch, removePluginFromPatch, hasEntryId } = require('./scripts/plugin-manager-patch');
 const { collectPluginRows } = require('./plugin-manager-state');
 const onboardingLogic = require('./scripts/onboarding');
@@ -3725,6 +3726,21 @@ function applySessionManageFix() {
   }
 }
 
+// web-react 垫片（内核 0.1.1-rc.2 缺失 @deepseek-ai/dsh-client-web-react
+// 种子模块 → 官方插件 require 时炸「missed the module table」）：往
+// dsh-web-frontend/dist/index.html 注入惰性工厂注册脚本。详见
+// scripts/patch-web-react-shim.js 头注释。锚点不匹配时自动跳过。
+function applyWebReactShim() {
+  for (const root of runtimePatchRoots()) {
+    if (!root || !fs.existsSync(root)) continue;
+    try {
+      if (patchWebReactShim(root, (m) => log('boot', m))) log('boot', 'web-react 垫片: 已应用到 ' + root);
+    } catch (err) {
+      log('boot', 'web-react 垫片失败(' + root + '): ' + err.message);
+    }
+  }
+}
+
 // ---------------------------------------------------------------------------
 // 插件启停管理（V4，移植自上游）：设置页「插件 → 管理」标签的数据与写盘。
 // dsh:plugin-list / dsh:plugin-set-enabled 两个 IPC 驱动；写盘用纯文本手术
@@ -4021,7 +4037,9 @@ function syncCompanionPlugins() {
     retireRemovedBuiltinPlugins(desktopProfileDir());
     // V4 运行时补丁（幂等，随启动 / 服务重启 / agent 更新后重放）：
     //  · 对话删除/归档 —— dsh-session-manager 插件的全链路前置依赖；
+    //  · web-react 垫片 —— 内核 0.1.1-rc.2 模块表缺失的运行时兜底。
     applySessionManageFix();
+    applyWebReactShim();
     const profileDirP = desktopProfileDir();
     // 内置社区 agent preset（anchored-standard：首请求锚定 Minimal 工具对，
     // 首次工具调用/回复后开放完整 Standard 目录）：安装到用户 preset 根。
