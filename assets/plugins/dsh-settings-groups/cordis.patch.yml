@@ -1,0 +1,10 @@
+# dsh-settings-groups 补丁：向 profile 插入 dsh-settings-groups 行。
+#
+# Host half (lib/index.js): no-op。
+# Browser half (lib/client.js, dsh.client manifest):
+#   - 设置页侧边栏按关键词分组「普通/高级」，高级组默认收起；
+#   - 常规页低频选项行收进底部「高级选项」折叠组；
+#   - 展开状态 localStorage 持久化（eac:settings-groups / eac:settings-groups-nav）。
+- insert:
+    - id: dsh-settings-groups
+      name: 'dsh-settings-groups'

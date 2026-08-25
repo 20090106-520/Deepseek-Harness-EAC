@@ -1,0 +1,13 @@
+# dsh-plugin-marketplace 补丁：向 profile 插入 @deepseek-ai/dsh-plugin-marketplace 行。
+#
+# Host half (lib/index.js):
+#   - 注册 pluginMarketplace Typert Remote（搜索/安装/卸载/更新插件）；
+#   - 驱动 npm 向 web profile 安装/卸载社区插件；
+#   - 声明 dsh.bundle.patch 的包追加 bundles，其他包幂等插入 pm-* 行。
+# Browser half (lib/client.js, dsh.client manifest):
+#   - 注册 settings.plugins.tab 的 marketplace 与 updates 两个子 tab；
+#   - 搜索框 + 结果卡片（版本/许可/日期/npm 链接）+ 一键安装/卸载；
+#   - 桌面客户端可用时「立即重启服务」按钮走 chrome:restart-service IPC。
+- insert:
+    - id: '@deepseek-ai/dsh-plugin-marketplace'
+      name: '@deepseek-ai/dsh-plugin-marketplace'

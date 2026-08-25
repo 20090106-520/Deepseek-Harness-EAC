@@ -1,0 +1,35 @@
+{
+  "name": "dsh-git-graph",
+  "version": "1.0.0",
+  "description": "Git branch selector and commit graph visualization for DeepSeek Harness. 提供分支切换器与提交图谱，在 composer 旁显示当前仓库状态。",
+  "type": "module",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./client": "./client/client.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src",
+    "client",
+    "cordis.patch.yml"
+  ],
+  "dsh": {
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-runtime"
+      ],
+      "platform": "web"
+    }
+  },
+  "license": "MIT",
+  "keywords": [
+    "dsh",
+    "deepseek-harness",
+    "plugin",
+    "git",
+    "branch",
+    "graph"
+  ]
+}

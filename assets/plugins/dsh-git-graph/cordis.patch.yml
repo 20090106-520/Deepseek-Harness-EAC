@@ -1,0 +1,14 @@
+# dsh-git-graph 补丁：向 profile 插入 ui-git-graph 行。
+#
+# Host half (src/index.js):
+#   - 通过 workspaceRegistry 获取已注册工作区路径，对每条 /git/* 请求做路径校验；
+#   - 通过 subprocess 服务执行 git 命令，提供 /git/status、/git/branches、
+#     /git/graph、/git/switch、/git/create-branch 接口；
+#   - /git/events SSE 监听工作区状态变化，30s 轮询间隔推分支头变化。
+# Browser half (client/client.js, dsh.client manifest):
+#   - 在 composer 上方注入分支选择器（Chip）；
+#   - 分支列表悬浮面板，当前分支高亮，点击切换；
+#   - commit 图谱以 ASCII 形式展示最近 200 次提交。
+- insert:
+    - id: ui-git-graph
+      name: 'dsh-git-graph'
