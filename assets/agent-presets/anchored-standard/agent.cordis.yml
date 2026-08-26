@@ -171,6 +171,11 @@
   disabled: !!js process.platform !== 'win32'
   config:
     bashPath: 'C:\Program Files\Git\bin\bash.exe'
+    # 单次执行超时（ms）：到点杀进程树并自动重试，避免命令无限挂起（如 526 分钟卡死）。
+    # 合法长任务建议后台运行（'sleep 10 &'）；确需前台长跑可调大此值。
+    timeoutMs: 600000
+    # 超时后的自动重试次数（每次都是全新 shell 重跑命令）。非幂等命令建议设 0。
+    maxRetries: 2
 
 # ── filesystem ──────────────────────────────────────────────────────────────
 

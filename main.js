@@ -15,6 +15,12 @@
 // installed for. We deliberately never rebuild them against Electron.
 
 const { app, BrowserWindow, Menu, Tray, shell, dialog, Notification, ipcMain, clipboard } = require('electron');
+// 黑屏修复（GPU）：部分机器（含本机）Electron 渲染合成在加载大体积 Web UI
+// 时会因 GPU 硬件加速失败而黑屏/标题 Error，但 Web 服务与主进程均正常。
+// 默认禁用硬件加速以根治黑屏；如需恢复可设 DSH_ENABLE_GPU=1 再启动。
+if (process.env.DSH_ENABLE_GPU !== '1') {
+  app.disableHardwareAcceleration();
+}
 const { spawn, spawnSync } = require('node:child_process');
 const path = require('node:path');
 const fs = require('node:fs');
@@ -4769,8 +4775,8 @@ async function runClientUpdateFlow(manual) {
         newVersion: release.version,
         nodeExe: nodeExe(),
       };
-      clientUpdater.applyUpdate(ctx, settings.pendingClientUpdate, clientUpdateOpts);
-      setTimeout(() => app.exit(0), 400);
+      await clientUpdater.applyUpdate(ctx, settings.pendingClientUpdate, clientUpdateOpts);
+      app.exit(0);
     }
   } catch (err) {
     log('client-update', '更新失败: ' + err.message);
@@ -4829,8 +4835,8 @@ function offerPendingClientUpdate() {
       newVersion: pending.version,
       nodeExe: nodeExe(),
     };
-    clientUpdater.applyUpdate(ctx, pending, clientUpdateOpts2);
-    setTimeout(() => app.exit(0), 400);
+    await clientUpdater.applyUpdate(ctx, pending, clientUpdateOpts2);
+    app.exit(0);
   });
 }
 
@@ -5033,7 +5039,9 @@ async function boot() {
       // 保证加载的始终是内置分发版本。
       syncCompanionPlugins();
       syncBundledSkills();
-      healProfileModules();
+      // 注：此前在 boot() 开头已执行过一次 healProfileModules()，
+      // processPendingMarketOps 若重写 node_modules 会在下方 restoreKeptArtifacts
+      // 与 verifyBundledModules 中一并处理，此处不再重复清理以节省启动时间。
       // V4 兜底：上次 pnpm 后异常退出没回填的第三方构建产物（meow-memory
       // 的 lib/ 等）在这里补上（processPendingMarketOps 正常路径已含回填，
       // 这里覆盖崩溃/强杀场景；无缓存时为空操作）。

@@ -27,6 +27,9 @@ files:
   - main.js
   - updater.js
   - client-updater.js
+  # 更新载体引导脚本：applyUpdate 经 Task Scheduler 用 -File 启动它，
+  # 再读取同目录 task-input.json 拉起真正的更新助手（v4.6.6）。
+  - update-task-boot.ps1
   - logger.js
   - plugin-updater.js
   - balance.js

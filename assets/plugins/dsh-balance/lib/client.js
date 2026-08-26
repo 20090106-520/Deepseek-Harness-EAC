@@ -357,17 +357,20 @@ window.__ModuleLoader__.load({
 		 */
 		function apply(ctx) {
 			ensureCss();
-			ctx.effect(() => ctx.slots.register({
+			// composer.dock/settings.section 都由宿主按需挂载后才会声明，
+			// 用 inject 延迟注册，避免在父条目挂载前立即 register 触发
+			// "slot is not declared (a parent entry's children table must declare it)"。
+			ctx.slots.inject("conversation.composer.dock", () => ctx.slots.register({
 				name: "conversation.composer.dock",
 				id: "balance",
 				order: 100
-			}, BalanceDock), "dsh-balance: composer dock entry");
-			ctx.effect(() => ctx.slots.register({
+			}, BalanceDock));
+			ctx.slots.inject("settings.section", () => ctx.slots.register({
 				name: "settings.section",
 				id: "pricing",
 				order: 23,
 				label: () => "价格设置"
-			}, PricingSection), "dsh-balance: pricing settings section");
+			}, PricingSection));
 		}
 
 		exports.apply = apply;
