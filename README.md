@@ -174,15 +174,15 @@ eek-Harness-EAC
 ��面（链接永久有 效，始终指向最�
 ��版），选� ��一：
    - [Deepseek-Harnes
-s-EAC-Portabl e-v4.6.5-x64.exe](https://github
+s-EAC-Portabl e-v4.6.6-x64.exe](https://github
 .com/200901 06-520/Deepseek-Harness-EAC/releas
 es/latest /download/Deepseek-Harness-EAC-Porta
 ble-v4. 6.3-x64.exe) —— 免安装便携版
 ，� �击运行
    - [Deepseek-Harness-EAC-Se
-tup -v4.6.5-x64.exe](https://github.com/200901
+tup -v4.6.6-x64.exe](https://github.com/200901
 0 6-520/Deepseek-Harness-EAC/releases/latest/d 
-ownload/Deepseek-Harness-EAC-Setup-v4.6.5-x6 4
+ownload/Deepseek-Harness-EAC-Setup-v4.6.6-x6 4
 .exe) —— 安装版，创建桌面/开� ���
 ��单快捷方式
 
