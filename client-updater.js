@@ -826,29 +826,34 @@ function buildApplyScript({ newExe, oldExe, portable, userDataDir, dshHome, inst
       'if "%SKIP_BACKUP%"=="0" if not exist "%BACKUP%\\." mkdir "%BACKUP%" 2>nul',
       // robocopy 成功码 0..7（0=无复制/1=成功/2=额外文件/3=成功+额外/...7=成功+额外+不匹配），
       // errorlevel>=8 才是失败。/MIR=/E+/PURGE，/R:1 /W:1，不写日志头。
+      // /XJ /XJD：不跟随目录联接与符号链接。profiles\node_modules 里存在指向
+      // 开发临时目录（如 dsh-web-ui2-tmp）或 .pnpm 深层的链接，跟随复制会让
+      // 目标路径超过 MAX_PATH，robocopy 对每条路径重试卡死数小时且无任何
+      // 提示（v4.6.2 实测：更新助手停在备份阶段、日志/备份全缺）。跳过链接
+      // 后由启动期的 healProfileModules/restoreKeptArtifacts 兜底重建。
       'if "%SKIP_BACKUP%"=="0" set "BAD=0"',
       // --- 阶段 2a：备份 userData（除 updates/ 自身和 backups/ 自身外都复制）---
       'if "%SKIP_BACKUP%"=="0" if exist "%UD%\\." (',
       '  echo [%date% %time%] backing up userData =%UD% >> "%LOG%"',
-      '  robocopy "%UD%" "%BACKUP%\\userdata" /MIR /XD "%UD%\\updates" "%UD%\\backups" "%UD%\\logs" /XF "*.log" /NFL /NDL /NJH /NJS /NP /R:1 /W:1 >> "%LOG%" 2>&1',
+      '  robocopy "%UD%" "%BACKUP%\\userdata" /MIR /XJ /XJD /XD "%UD%\\updates" "%UD%\\backups" "%UD%\\logs" /XF "*.log" /NFL /NDL /NJH /NJS /NP /R:1 /W:1 >> "%LOG%" 2>&1',
       '  if errorlevel 8 set BAD=1',
       ')',
       // --- 阶段 2b：备份 .dsh 目录（不含 sessions/ 大文件与 node_modules/.cache）---
       'if "%SKIP_BACKUP%"=="0" if exist "%DSH%\\." (',
       '  echo [%date% %time%] backing up dsh =%DSH% >> "%LOG%"',
-      '  robocopy "%DSH%" "%BACKUP%\\dsh" /MIR /XD "%DSH%\\sessions" /NFL /NDL /NJH /NJS /NP /R:1 /W:1 >> "%LOG%" 2>&1',
+      '  robocopy "%DSH%" "%BACKUP%\\dsh" /MIR /XJ /XJD /XD "%DSH%\\sessions" /NFL /NDL /NJH /NJS /NP /R:1 /W:1 >> "%LOG%" 2>&1',
       '  if errorlevel 8 set BAD=1',
       ')',
       // --- 阶段 2c：备份 web-desktop profile ---
       'if "%SKIP_BACKUP%"=="0" if exist "%PROF%\\." (',
       '  echo [%date% %time%] backing up profile =%PROF% >> "%LOG%"',
-      '  robocopy "%PROF%" "%BACKUP%\\profile" /MIR /XD "%PROF%\\node_modules\\.cache" /NFL /NDL /NJH /NJS /NP /R:1 /W:1 >> "%LOG%" 2>&1',
+      '  robocopy "%PROF%" "%BACKUP%\\profile" /MIR /XJ /XJD /XD "%PROF%\\node_modules\\.cache" /NFL /NDL /NJH /NJS /NP /R:1 /W:1 >> "%LOG%" 2>&1',
       '  if errorlevel 8 set BAD=1',
       ')',
       // --- 阶段 2d：备份安装目录（含 exe + resources 等；排除 node_modules/.cache 加速）---
       'if "%SKIP_BACKUP%"=="0" if exist "%INST%\\." (',
       '  echo [%date% %time%] backing up install =%INST% >> "%LOG%"',
-      '  robocopy "%INST%" "%BACKUP%\\install" /MIR /XD "%INST%\\resources\\app\\node_modules\\.cache" /NFL /NDL /NJH /NJS /NP /R:1 /W:1 >> "%LOG%" 2>&1',
+      '  robocopy "%INST%" "%BACKUP%\\install" /MIR /XJ /XJD /XD "%INST%\\resources\\app\\node_modules\\.cache" /NFL /NDL /NJH /NJS /NP /R:1 /W:1 >> "%LOG%" 2>&1',
       '  if errorlevel 8 set BAD=1',
       ')',
       // --- 阶段 3：写 manifest.json（Node 内联，携带版本号 + 路径 + registry 对比 + 回滚指引）---
@@ -905,19 +910,19 @@ function buildApplyScript({ newExe, oldExe, portable, userDataDir, dshHome, inst
       '  echo [%date% %time%] rolling back 4 directories from %BACKUP% >> "%LOG%"',
       '  set "RBAD=0"',
       '  if exist "%BACKUP%\\install\\." (',
-      '    robocopy "%BACKUP%\\install" "%INST%" /MIR /NFL /NDL /NJH /NJS /NP /R:1 /W:1 >> "%LOG%" 2>&1',
+      '    robocopy "%BACKUP%\\install" "%INST%" /MIR /XJ /XJD /NFL /NDL /NJH /NJS /NP /R:1 /W:1 >> "%LOG%" 2>&1',
       '    if errorlevel 8 set RBAD=1',
       '  )',
       '  if exist "%BACKUP%\\dsh\\." (',
-      '    robocopy "%BACKUP%\\dsh" "%DSH%" /MIR /NFL /NDL /NJH /NJS /NP /R:1 /W:1 >> "%LOG%" 2>&1',
+      '    robocopy "%BACKUP%\\dsh" "%DSH%" /MIR /XJ /XJD /NFL /NDL /NJH /NJS /NP /R:1 /W:1 >> "%LOG%" 2>&1',
       '    if errorlevel 8 set RBAD=1',
       '  )',
       '  if exist "%BACKUP%\\profile\\." (',
-      '    robocopy "%BACKUP%\\profile" "%PROF%" /MIR /NFL /NDL /NJH /NJS /NP /R:1 /W:1 >> "%LOG%" 2>&1',
+      '    robocopy "%BACKUP%\\profile" "%PROF%" /MIR /XJ /XJD /NFL /NDL /NJH /NJS /NP /R:1 /W:1 >> "%LOG%" 2>&1',
       '    if errorlevel 8 set RBAD=1',
       '  )',
       '  if exist "%BACKUP%\\userdata\\." (',
-      '    robocopy "%BACKUP%\\userdata" "%UD%" /MIR /XD "%UD%\\updates" "%UD%\\backups" "%UD%\\logs" /XF "*.log" /NFL /NDL /NJH /NJS /NP /R:1 /W:1 >> "%LOG%" 2>&1',
+      '    robocopy "%BACKUP%\\userdata" "%UD%" /MIR /XJ /XJD /XD "%UD%\\updates" "%UD%\\backups" "%UD%\\logs" /XF "*.log" /NFL /NDL /NJH /NJS /NP /R:1 /W:1 >> "%LOG%" 2>&1',
       '    if errorlevel 8 set RBAD=1',
       '  )',
       ')',
@@ -945,6 +950,85 @@ function buildApplyScript({ newExe, oldExe, portable, userDataDir, dshHome, inst
  */
 function buildSpawnCommandLine(script, args) {
   return '"' + [script, ...args].map((a) => `"${a}"`).join(' ') + '"';
+}
+
+/**
+ * v4.6.6 更新载体：Windows Task Scheduler（schtasks）。
+ *
+ * 前置尝试的失败史（决定改走 Task Scheduler）：
+ *   - v4.6.3 直接 detached spawn powershell → DETACHED_PROCESS 下初始化
+ *     控制台失败，静默死亡；
+ *   - v4.6.4 去掉 detached 直接 spawn → 进程留在 Electron 的 Job Object
+ *     里，主进程 app.exit(0) 关闭 Job 句柄（kill-on-close）连带击杀等待
+ *     中的助手，日志停在「waiting for app exit」；
+ *   - v4.6.5 node 中介链（Electron --detached--> node --> powershell）在
+ *     真实环境失败：detached 中介 spawn 出的 powershell 继承异常环境，静默
+ *     死亡（E2E 实证）。
+ *
+ * Task Scheduler 由 Schedule 服务拉起进程，天然脱离 Electron 的 Job
+ * Object、DETACHED_PROCESS 环境与终端清杀，是当前最可靠的更新载体。
+ *
+ * 链路：applyUpdate 把随包内置的 update-task-boot.ps1 复制到 updates/，
+ * 写 task-input.json（program+arguments+taskName），schtasks 创建一次性
+ * 任务（/tr=引导脚本）并 /run 投递 → 引导脚本读配置、MSDN 转义、拉起真正
+ * 的更新助手（cmd / powershell）→ 引导脚本自清理删除该任务。主进程随后
+ * app.exit(0) 已无法波及更新链路。
+ */
+
+// 随包分发的引导脚本：applyUpdate 复制其内容到 updates/task-boot.ps1。
+const TASK_BOOT_PS1 = path.join(__dirname, 'update-task-boot.ps1');
+// 引导脚本由哪个 PowerShell 启动（schtasks /tr 很短，只用短路径引导）。
+const POWERSHELL_EXE = path.join(
+  process.env.SystemRoot || 'C:\\Windows',
+  'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe'
+);
+
+/** 跑一条 schtasks 命令（create/run/delete），返回 { code, out, err }。 */
+function runScheduledTaskCmd(args) {
+  return new Promise((resolve) => {
+    let child;
+    try {
+      child = spawn('schtasks', args, { windowsVerbatimArguments: true });
+    } catch (e) {
+      resolve({ code: -1, out: '', err: 'spawn schtasks: ' + e.message });
+      return;
+    }
+    let out = '';
+    let err = '';
+    child.stdout.on('data', (d) => { out += d; });
+    child.stderr.on('data', (d) => { err += d; });
+    child.on('error', (e) => resolve({ code: -1, out, err: err || e.message }));
+    child.on('close', (code) => resolve({ code, out, err }));
+  });
+}
+
+/**
+ * 经 Task Scheduler 把更新助手投递出去（v4.6.6）。
+ *
+ * - 引导脚本必须已写到 updates/；task-input.json 与它同目录。
+ * - 整个 /tr 用一对引号包裹、内嵌引号转义为 \"，并配
+ *   windowsVerbatimArguments 逐字传递（无此模式 schtasks 会在空格处拆
+ *   参，如 -NoProfile 被当成独立选项，boottest 实证）。
+ * - 返回后主进程即可退出；任务的执行与自清理都不依赖主进程存活。
+ */
+async function launchViaTaskScheduler({ bootScript, program, args }) {
+  const dir = path.dirname(bootScript);
+  const taskName = 'DshUpdate_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  // taskName 由引导脚本读取，用于启动助手后 self-clean 删除该一次性任务。
+  fs.writeFileSync(path.join(dir, 'task-input.json'), JSON.stringify({ program, arguments: args, taskName }));
+  const trInner =
+    POWERSHELL_EXE + ' -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File "' + bootScript + '"';
+  const tr = '"' + trInner.replace(/"/g, '\\"') + '"';
+  const create = await runScheduledTaskCmd(['/create', '/tn', taskName, '/tr', tr, '/sc', 'once', '/st', '23:59', '/f', '/it']);
+  if (create.code !== 0) {
+    throw new Error('创建更新计划任务失败 (' + create.code + '): ' + (create.err || create.out || '').trim());
+  }
+  const run = await runScheduledTaskCmd(['/run', '/tn', taskName]);
+  // /run 只负责把任务投递给 Schedule 服务，立即返回；无需等更新助手结束。
+  if (run.code !== 0) {
+    throw new Error('触发更新计划任务失败 (' + run.code + '): ' + (run.err || run.out || '').trim());
+  }
+  return taskName;
 }
 
 function buildInstalledPowerShellArgs(script, {
@@ -984,7 +1068,7 @@ function buildInstalledPowerShellArgs(script, {
   ];
 }
 
-function applyUpdate(ctx, pending, opts) {
+async function applyUpdate(ctx, pending, opts) {
   const newExe = pending.path;
   const portable = isPortable();
   const oldExe = process.env.PORTABLE_EXECUTABLE_FILE || process.execPath;
@@ -997,18 +1081,14 @@ function applyUpdate(ctx, pending, opts) {
   const currentVersion = (opts && opts.currentVersion) || '';
   const newVersion = (opts && opts.newVersion) || (pending && pending.version) || '';
   const nodeExe = (opts && opts.nodeExe) || '';
+  let program;
+  let args;
   let script;
-  let child;
   if (portable) {
     script = path.join(updateDir, 'apply-update.cmd');
     fs.writeFileSync(script, buildApplyScript({ newExe, oldExe, portable: true }).join('\r\n') + '\r\n');
-    const args = [newExe, oldExe];
-    child = spawn('cmd.exe', ['/d', '/s', '/c', buildSpawnCommandLine(script, args)], {
-      detached: true,
-      stdio: 'ignore',
-      windowsHide: true,
-      windowsVerbatimArguments: true,
-    });
+    program = 'cmd.exe';
+    args = ['/d', '/s', '/c', buildSpawnCommandLine(script, [newExe, oldExe])];
   } else {
     const actionScript = path.join(updateDir, 'apply-update.cmd');
     script = path.join(updateDir, 'apply-update.ps1');
@@ -1018,12 +1098,9 @@ function applyUpdate(ctx, pending, opts) {
     });
     fs.writeFileSync(actionScript, actionLines.join('\r\n') + '\r\n');
     fs.writeFileSync(script, buildInstalledApplyScript().join('\r\n') + '\r\n', 'ascii');
-    const powershell = path.join(
-      process.env.SystemRoot || 'C:\\Windows',
-      'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe'
-    );
-    if (!fs.existsSync(powershell)) throw new Error('找不到 Windows PowerShell: ' + powershell);
-    const args = buildInstalledPowerShellArgs(script, {
+    if (!fs.existsSync(POWERSHELL_EXE)) throw new Error('找不到 Windows PowerShell: ' + POWERSHELL_EXE);
+    program = POWERSHELL_EXE;
+    args = buildInstalledPowerShellArgs(script, {
       actionScript,
       newExe,
       oldExe,
@@ -1036,16 +1113,17 @@ function applyUpdate(ctx, pending, opts) {
       appPid: process.pid,
       logPath,
     });
-    child = spawn(powershell, args, {
-      detached: true,
-      stdio: 'ignore',
-      windowsHide: true,
-    });
   }
-  ctx.log('client-update', `启动更新助手: ${script}（新: ${newExe}，旧: ${oldExe}，备份根: ${userDataDir}\\backups\\<ts>，node: ${nodeExe || '(无，跳过备份)'}）`);
-  child.once('error', (err) => ctx.log('client-update', '更新助手启动失败: ' + err.message));
-  child.unref();
+  // v4.6.6 更新载体 = Task Scheduler（见 launchViaTaskScheduler 注释）：
+  // 复制随包引导脚本进 updates/，写 task-input.json，schtasks 创建并 /run
+  // 一次性任务。返回后主进程即可 app.exit(0)，更新链路不受影响。
+  if (!fs.existsSync(updateDir)) fs.mkdirSync(updateDir, { recursive: true });
+  const bootScript = path.join(updateDir, 'task-boot.ps1');
+  if (!fs.existsSync(TASK_BOOT_PS1)) throw new Error('找不到更新引导脚本: ' + TASK_BOOT_PS1);
+  fs.writeFileSync(bootScript, fs.readFileSync(TASK_BOOT_PS1, 'utf8'), 'utf8');
+  const taskName = await launchViaTaskScheduler({ bootScript, program, args });
+  ctx.log('client-update', `已投递更新助手: ${script}（新: ${newExe}，旧: ${oldExe}，备份根: ${userDataDir}\\backups\\<ts>，任务: ${taskName}，node: ${nodeExe || '(无，跳过备份)'}）`);
   return script;
 }
 
-module.exports = { checkLatest, selectAsset, downloadFile, downloadWithSourceSwitch, downloadRelease, releaseFallbacks, applyUpdate, buildApplyScript, buildInstalledApplyScript, buildInstalledPowerShellArgs, buildSpawnCommandLine, isPortable, resolveRepos, normalizeRelease, computeSha256, fetchSumsMap, expectedSha256, isNoSpaceError, githubProxyUrl, downloadUrls, DEFAULT_REPOS };
+module.exports = { checkLatest, selectAsset, downloadFile, downloadWithSourceSwitch, downloadRelease, releaseFallbacks, applyUpdate, buildApplyScript, buildInstalledApplyScript, buildInstalledPowerShellArgs, buildSpawnCommandLine, launchViaTaskScheduler, runScheduledTaskCmd, isPortable, resolveRepos, normalizeRelease, computeSha256, fetchSumsMap, expectedSha256, isNoSpaceError, githubProxyUrl, downloadUrls, DEFAULT_REPOS };

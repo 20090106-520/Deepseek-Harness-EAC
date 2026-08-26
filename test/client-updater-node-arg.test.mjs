@@ -31,7 +31,10 @@ const recordedSpawns = [];
 const realSpawn = cp.spawn;
 cp.spawn = function interceptedSpawn(cmd, args, opts) {
   recordedSpawns.push({ cmd, args, opts });
-  return { unref() {}, kill() {}, on() {}, once() {}, pid: -1 };
+  // runScheduledTaskCmd 会给 stdout/stderr 挂 data 监听、子进程挂 close/
+  // error 监听；给一个空壳即可，不触发任何事件（promise 保持 pending，
+  // 测试走同步断言的路径，无需 await）。
+  return { pid: -1, unref() {}, kill() {}, on() {}, once() {}, stdout: { on() {} }, stderr: { on() {} } };
 };
 
 const clientUpdater = require('../client-updater.js');
@@ -56,14 +59,28 @@ test('applyUpdate inlines the bundled node exe into the script body', () => {
       newVersion: '4.4.0',
       nodeExe,
     });
+    // v4.6.6：applyUpdate 经 Task Scheduler（schtasks）投递，不再直接 spawn
+    // 助手进程。本次走安装分支（PORTABLE_EXECUTABLE_DIR 未设）→ 引导脚本
+    // 配的是 powershell.exe 参数；触发时最后一把 spawn 应是 schtasks /run。
     assert.ok(recordedSpawns.length >= 1, 'spawn must have been called');
     const last = recordedSpawns[recordedSpawns.length - 1];
-    assert.equal(path.basename(last.cmd).toLowerCase(), 'powershell.exe');
-    assert.equal(last.args[last.args.indexOf('-WindowStyle') + 1], 'Hidden');
+    assert.equal(path.basename(last.cmd).toLowerCase(), 'schtasks');
+    assert.ok(last.opts?.windowsVerbatimArguments === true, 'schtasks 须逐字传参');
+
+    // 引导脚本复制自随包 update-task-boot.ps1，task-input.json 记录
+    // program=内置 PowerShell + 完整安装参数（含 -ActionScriptPath）。
+    const bootText = fs.readFileSync(path.join(dir, 'updates', 'task-boot.ps1'), 'utf8');
+    assert.match(bootText, /MSDN CreateProcess quoting/, 'bootstrap must carry the MSDN quoter');
+    const cfg = JSON.parse(fs.readFileSync(path.join(dir, 'updates', 'task-input.json'), 'utf8'));
+    assert.ok(cfg.program.toLowerCase().includes('powershell.exe'), 'installed branch program must be PowerShell');
+    assert.ok(cfg.arguments.includes('-WindowStyle') && cfg.arguments[cfg.arguments.indexOf('-WindowStyle') + 1] === 'Hidden');
     assert.equal(
-      last.args[last.args.indexOf('-ActionScriptPath') + 1],
+      cfg.arguments[cfg.arguments.indexOf('-ActionScriptPath') + 1],
       path.join(dir, 'updates', 'apply-update.cmd')
     );
+    assert.equal(cfg.arguments[cfg.arguments.indexOf('-SetupPath') + 1], path.join(dir, 'setup.exe'));
+    assert.ok(/^DshUpdate_/.test(cfg.taskName), 'task-input.json must carry the one-shot task name');
+
     // 写盘的脚本必须内联 node 路径（% 转义 %%），且不得依赖 PATH node，
     // 也不得用 %~10 / shift 接参数（两条均已实测会坏）。
     const scriptText = fs.readFileSync(path.join(dir, 'updates', 'apply-update.cmd'), 'utf8');
@@ -74,6 +91,55 @@ test('applyUpdate inlines the bundled node exe into the script body', () => {
     assert.doesNotMatch(scriptText, /%~10/, 'must never reference %~10');
     assert.doesNotMatch(scriptText, /^\s*shift\s*$/m, 'must not rely on shift');
     assert.doesNotMatch(scriptText, /(^|[^"%\w])node\s+-e/, 'script must not invoke bare `node`');
+  } finally {
+    if (prevFile === undefined) delete process.env.PORTABLE_EXECUTABLE_FILE;
+    else process.env.PORTABLE_EXECUTABLE_FILE = prevFile;
+    cp.spawn = realSpawn;
+    try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* best effort */ }
+  }
+});
+
+// v4.6.6 便携分支：applyUpdate 经 Task Scheduler 投递，task-input.json 的
+// program 应为 cmd.exe，arguments 的第四段是 buildSpawnCommandLine 输出的
+// 双引号嵌套格式（""script" "arg""），引导脚本 cmd 分支走 raw join。
+test('applyUpdate portable branch uses Task Scheduler with cmd.exe', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dsh-portable-sch-'));
+  fs.mkdirSync(path.join(dir, 'updates'), { recursive: true });
+  const prevDir = process.env.PORTABLE_EXECUTABLE_DIR;
+  const prevFile = process.env.PORTABLE_EXECUTABLE_FILE;
+  // isPortable() 检查的是 PORTABLE_EXECUTABLE_DIR；PORTABLE_EXECUTABLE_FILE
+  // 仅用于取 oldExe。
+  process.env.PORTABLE_EXECUTABLE_DIR = dir;
+  process.env.PORTABLE_EXECUTABLE_FILE = path.join(dir, 'app.exe');
+  try {
+    const ctx = { userDataDir: dir, log() {} };
+    const pending = { path: path.join(dir, 'app-v2.exe'), version: '4.6.6' };
+    clientUpdater.applyUpdate(ctx, pending, {
+      userDataDir: dir,
+      newExe: path.join(dir, 'app-v2.exe'),
+      oldExe: path.join(dir, 'app.exe'),
+      portable: true,
+    });
+    assert.ok(recordedSpawns.length >= 1, 'spawn must have been called');
+    const last = recordedSpawns[recordedSpawns.length - 1];
+    assert.equal(path.basename(last.cmd).toLowerCase(), 'schtasks');
+    assert.ok(last.opts?.windowsVerbatimArguments === true, 'schtasks 须逐字传参');
+
+    const bootText = fs.readFileSync(path.join(dir, 'updates', 'task-boot.ps1'), 'utf8');
+    assert.match(bootText, /MSDN CreateProcess quoting/, 'bootstrap must carry the MSDN quoter');
+    const cfg = JSON.parse(fs.readFileSync(path.join(dir, 'updates', 'task-input.json'), 'utf8'));
+    assert.equal(cfg.program.toLowerCase(), 'cmd.exe', 'portable branch program must be cmd.exe');
+    assert.equal(cfg.arguments.length, 4, 'portable branch has 4 args: /d /s /c <cmd>');
+    assert.equal(cfg.arguments[0], '/d');
+    assert.equal(cfg.arguments[1], '/s');
+    assert.equal(cfg.arguments[2], '/c');
+    // buildSpawnCommandLine wraps the whole command in outer quote pair:
+    // ""script" "arg""
+    assert.match(cfg.arguments[3], /^"".*""$/, 'args[3] must be double-quoted (buildSpawnCommandLine format)');
+
+    const scriptText = fs.readFileSync(path.join(dir, 'updates', 'apply-update.cmd'), 'utf8');
+    assert.ok(scriptText.includes(':replace'), 'apply-update.cmd must contain the portable replacement logic');
+    assert.ok(/^DshUpdate_/.test(cfg.taskName), 'task-input.json must carry the one-shot task name');
   } finally {
     if (prevFile === undefined) delete process.env.PORTABLE_EXECUTABLE_FILE;
     else process.env.PORTABLE_EXECUTABLE_FILE = prevFile;
