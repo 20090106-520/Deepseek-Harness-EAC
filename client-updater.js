@@ -57,6 +57,15 @@ const DEFAULT_REPOS = { github: '20090106-520/Deepseek-Harness-EAC', gitee: '200
 const REPO_SLUG = /^[A-Za-z0-9_.-]{1,64}\/[A-Za-z0-9_.-]{1,64}$/;
 const MIN_VALID_BYTES = 64 * 1024 * 1024; // 完整安装包远大于 64MB，防止把错误页当 exe
 const GITHUB_DOWNLOAD_PROXY = 'https://gh.geekertao.top/';
+// 多代理候选：任一代理不可用时自动切换到下一个，避免单点故障导致整包下载
+// 卡死在 60s 超时上。顺序即为优先序（通常第一个最快）。
+const GITHUB_DOWNLOAD_PROXIES = [
+  'https://gh.geekertao.top/',
+  'https://mirror.ghproxy.com/',
+  'https://gh-proxy.com/',
+];
+// 代理探测超时（毫秒）：短超时快速找出可用的代理，避免每次下载都等 60s
+const PROBE_TIMEOUT_MS = 3000;
 
 function isPortable() {
   return !!process.env.PORTABLE_EXECUTABLE_DIR;
@@ -72,10 +81,9 @@ function resolveRepos(repos) {
 
 /**
  * 只为 GitHub Release 资产生成代理地址；其他来源保持原地址。
- * opts.version / opts.sha256 作为查询参数附加：gh.geekertao.top 这类加速代理
- * 会缓存旧的安装包文件（同名同大小、内容却是旧版），客户端拿到旧文件导致
- * SHA-256 校验失败、更新中止。附加版本号与公布哈希后，代理缓存键随内容变化，
- * 自动绕开旧缓存（版本号必带，哈希可加强到内容级）。
+ * opts.version / opts.sha256 作为查询参数附加：代理会缓存旧的安装包文件
+ * （同名同大小、内容却是旧版），客户端拿到旧文件导致 SHA-256 校验失败、
+ * 更新中止。附加版本号与公布哈希后，代理缓存键随内容变化，自动绕开旧缓存。
  */
 function githubProxyUrl(url, { version = '', sha256 = '' } = {}) {
   const value = String(url || '').trim();
@@ -87,12 +95,54 @@ function githubProxyUrl(url, { version = '', sha256 = '' } = {}) {
   return GITHUB_DOWNLOAD_PROXY + value + suffix;
 }
 
-/** 组装下载候选：代理优先，随后原始地址，再接其他 Release 源。opts 透传给代理地址生成（缓存破坏参数）。 */
+/** 生成 GitHub 资产在所有代理上的候选 URL 列表（优先代理，再原始地址）。 */
+function githubProxyUrls(url, { version = '', sha256 = '' } = {}) {
+  const value = String(url || '').trim();
+  if (!/^https:\/\/github\.com\//i.test(value)) return [];
+  const params = [];
+  if (version) params.push(`v=${encodeURIComponent(String(version))}`);
+  if (sha256) params.push(`sha256=${encodeURIComponent(String(sha256))}`);
+  const suffix = params.length ? (value.includes('?') ? '&' : '?') + params.join('&') : '';
+  return GITHUB_DOWNLOAD_PROXIES.map((p) => p + value + suffix);
+}
+
+/**
+ * 并行探测一批 URL，返回按响应速度排序的「可用 URL」列表。
+ * 短超时（PROBE_TIMEOUT_MS）内拿到响应头的即认为可用，按到达时间排序。
+ * 全部失败时返回空数组（调用方降级为原始顺序）。
+ */
+async function probeUrls(urls, { timeoutMs = PROBE_TIMEOUT_MS } = {}) {
+  if (urls.length <= 1) return urls;
+  const results = await Promise.allSettled(
+    urls.map((url) =>
+      new Promise((resolve) => {
+        const timer = setTimeout(() => resolve({ url, ok: false, t: Date.now() }), timeoutMs);
+        getResponse(url, { timeoutMs: timeoutMs }).then(
+          (r) => { clearTimeout(timer); resolve({ url, ok: true, t: Date.now(), status: r.status }); },
+          (e) => { clearTimeout(timer); resolve({ url, ok: false, t: Date.now(), err: e.message }); },
+        );
+      }),
+    ),
+  );
+  const ok = results
+    .filter((r) => r.status === 'fulfilled' && r.value.ok && r.value.status === 200)
+    .sort((a, b) => a.value.t - b.value.t);
+  const failed = results
+    .filter((r) => r.status === 'fulfilled' && !r.value.ok)
+    .map((r) => r.value.url);
+  // 优先返回测速通过的 URL（按速度排序），失败的路径保留在原位供顺序重试
+  if (!ok.length) return urls;
+  const okSet = new Set(ok.map((r) => r.value.url));
+  return [...ok.map((r) => r.value.url), ...urls.filter((u) => !okSet.has(u))];
+}
+
+/** 组装下载候选：所有代理优先（按优先序），随后原始地址，再接其他 Release 源。opts 透传给代理地址生成（缓存破坏参数）。 */
 function downloadUrls(primaryUrl, fallbackUrls = [], opts = {}) {
   const primary = String(primaryUrl || '').trim();
   const candidates = [];
-  const proxied = githubProxyUrl(primary, opts);
-  if (proxied) candidates.push(proxied);
+  // 生成所有代理候选（而非仅主代理），提升任一代理不可用时的容错
+  const proxiedAll = githubProxyUrls(primary, opts);
+  for (const u of proxiedAll) candidates.push(u);
   if (primary) candidates.push(primary);
   for (const url of Array.isArray(fallbackUrls) ? fallbackUrls : []) {
     const value = String(url || '').trim();
@@ -1126,4 +1176,4 @@ async function applyUpdate(ctx, pending, opts) {
   return script;
 }
 
-module.exports = { checkLatest, selectAsset, downloadFile, downloadWithSourceSwitch, downloadRelease, releaseFallbacks, applyUpdate, buildApplyScript, buildInstalledApplyScript, buildInstalledPowerShellArgs, buildSpawnCommandLine, launchViaTaskScheduler, runScheduledTaskCmd, isPortable, resolveRepos, normalizeRelease, computeSha256, fetchSumsMap, expectedSha256, isNoSpaceError, githubProxyUrl, downloadUrls, DEFAULT_REPOS };
+module.exports = { checkLatest, selectAsset, downloadFile, downloadWithSourceSwitch, downloadRelease, releaseFallbacks, applyUpdate, buildApplyScript, buildInstalledApplyScript, buildInstalledPowerShellArgs, buildSpawnCommandLine, launchViaTaskScheduler, runScheduledTaskCmd, isPortable, resolveRepos, normalizeRelease, computeSha256, fetchSumsMap, expectedSha256, isNoSpaceError, githubProxyUrl, githubProxyUrls, downloadUrls, probeUrls, DEFAULT_REPOS };
