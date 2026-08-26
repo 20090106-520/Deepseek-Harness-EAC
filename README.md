@@ -174,15 +174,15 @@ eek-Harness-EAC
 ��面（链接永久有效，始终指向最�
 ��版），选其一：
    - [Deepseek-Harnes
-s-EAC-Portable-v4.6.2-x64.exe](https://github
+s-EAC-Portable-v4.6.3-x64.exe](https://github
 .com/20090106-520/Deepseek-Harness-EAC/releas
 es/latest/download/Deepseek-Harness-EAC-Porta
-ble-v4.6.2-x64.exe) —— 免安装便携版
+ble-v4.6.3-x64.exe) —— 免安装便携版
 ，双击运行
    - [Deepseek-Harness-EAC-Se
-tup-v4.6.2-x64.exe](https://github.com/200901
+tup-v4.6.3-x64.exe](https://github.com/200901
 06-520/Deepseek-Harness-EAC/releases/latest/d
-ownload/Deepseek-Harness-EAC-Setup-v4.6.2-x64
+ownload/Deepseek-Harness-EAC-Setup-v4.6.3-x64
 .exe) —— 安装版，创建桌面/开始�
 ��单快捷方式
 
@@ -258,7 +258,7 @@ ttps://registry.npmmirror.com`）。
 �新 / 跳过此版本 / 稍后**；同意后
 带进度条下载安装包（便携版选 `*
 -portable-x64.exe`，安装版选 `Setup-*-x6
-4.exe`；Gitee 因单文件 100MB 限制拆�
+4.exe`；Gitee 因���文件 100MB 限制拆�
 �的 `.part1/.part2` 分片会自动按序下
 载并合并），下载到 `<数据目录>\u
 pdates\`。
@@ -366,7 +366,7 @@ nges` 会话投影，零写入、零格式变
 ��把该文件的变更按逆序发给桌面�
 ��，壳层做**内容精确匹配后替换**
 （新建→删除、删除→恢复、修改
-→回写写前全文）；文件已被后续
+��回写写前全文）；文件已被后续
 改动时提示冲突，绝不覆盖未知内
 容。
 - **对话回退**：沿用 dsh 内置
