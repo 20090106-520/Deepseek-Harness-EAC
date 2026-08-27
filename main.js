@@ -4584,7 +4584,7 @@ function startJunctionWatchdog() {
         log('guard', '共享模块被外部 dsh 接管（PID ' + ext.pids.join(', ') + '），待其退出后自动修复');
         return;
       }
-      const res = g.repairJunctions();
+      const res = g.repairJunctions(true);
       if (res.repaired.length && !notified) {
         notified = true;
         try {

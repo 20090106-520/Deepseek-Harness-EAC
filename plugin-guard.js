@@ -430,7 +430,7 @@ function createGuard(opts) {
   // 一跑，桌面的模块解析就被换血（版本错位 / npx 缓存被清后悬空）。
   // 这里以 dshBin() 推导闭包根，逐个纠正指向；闭包里不存在的名字（原生
   // 新版才有的包）保留原样并报告。
-  function repairJunctions() {
+  function repairJunctions(silent) {
     const repaired = [];
     const unknown = [];
     try {
@@ -467,7 +467,9 @@ function createGuard(opts) {
       if (repaired.length) {
         log('guard', '已把 ' + repaired.length + ' 个共享模块指回客户端闭包');
       }
-      if (unknown.length) {
+      // unknown 是「原生 dsh 新版才有、本客户端闭包没有」的包，保留原指向即
+      // 正确 —— 属良性预期，不在周期巡检里刷屏（仅保留实际修复的日志）。
+      if (unknown.length && !silent) {
         log('guard', '闭包中不存在的共享模块（保留原指向）: ' + unknown.slice(0, 10).join(', '));
       }
     } catch (err) {

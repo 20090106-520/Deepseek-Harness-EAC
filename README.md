@@ -52,6 +52,26 @@
 > 便携版的数据目录是 exe 旁的 `data\`；安装版在 `%APPDATA%\Deepseek Harness EAC\`。
 > 若想强制指定 DSH 配置目录，启动前设置环境变量 `DSH_HOME` 即可（与 dsh CLI 行为一致）。
 
+## 界面速览（Screenshot Gallery）
+
+桌面端把官方 `dsh web` 封装进一个风格化自绘窗口，开箱即用。首次启动会看到原生简洁界面；想换外观，到设置 → 皮肤一键切换（详见「界面皮肤」章节）。下列为内置皮肤的官方界面预览图：
+
+| 蓝幻（blue-fantasy） | 龙裔（dragon-heir） |
+| --- | --- |
+| ![蓝幻皮肤](assets/skins/blue-fantasy/preview/light.png) | ![龙裔皮肤](assets/skins/dragon-heir/preview/light.png) |
+
+| 我的世界（minecraft） | 初音未来（miku） | 交易（trading） |
+| --- | --- | --- |
+| ![minecraft](assets/skins/minecraft/preview/light.png) | ![miku](assets/skins/miku/preview/light.png) | ![trading](assets/skins/trading/preview/light.png) |
+
+**3 步上手：**
+
+1. **新建会话**：点左侧栏顶部的「+ 新建会话」（或对话界面上方的「命令」按钮），进入空白对话。
+2. **选模型 & 发送**：在输入框下方的「选择模型」下拉里挑模型（默认跟随你的 DeepSeek API Key），在「给智能体发消息」输入框打字并回车/点发送。
+3. **换皮肤**：右侧「⋯」菜单 → 设置 → 皮肤 → 任选一款，服务自动重启后生效；「恢复默认皮肤」一键还原原生外观。
+
+> 快捷键：`Ctrl+R` 硬刷新界面 · `F11` 全屏 · `Ctrl+Shift+S` 侧边临时会话（浮窗追问）· 会话头部按钮可「弹出到独立窗口」分屏。
+
 ## 跟随官方更新（用户同意后自动更新）
 
 - 启动 15 秒后及此后每 6 小时，自动查询 npm 官方 registry 上 @deepseek-ai/dsh 的最新版本；菜单「帮助 → 检查更新…」可随时手动检查。
